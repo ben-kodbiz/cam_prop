@@ -57,6 +57,17 @@ warn_unreachable = true
 module = "feedparser.*"
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = ["pymupdf", "fitz"]
+ignore_missing_imports = true
+
+# pdf.py straddles two environments (pymupdf installed or not); its inline
+# ignores are needed in exactly one of the two states, so allow the unused
+# ones rather than pinning the file to a single environment.
+[[tool.mypy.overrides]]
+module = "ingestion.pdf"
+warn_unused_ignores = false
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"

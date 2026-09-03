@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from types import ModuleType
-from typing import cast
 
 from ingestion.rss import fetch
 
@@ -13,15 +12,19 @@ class PdfIngestError(RuntimeError):
 
 
 def _import_pymupdf() -> ModuleType:
-    """Import PyMuPDF under either its new or legacy name."""
+    """Import PyMuPDF under either its new or legacy name.
+
+    Both import paths are typed via pyproject overrides when missing, so no
+    inline ignores are needed in either environment.
+    """
     try:
         import pymupdf
 
-        return pymupdf
+        return pymupdf  # type: ignore[no-any-return]
     except ImportError:
-        import fitz  # type: ignore[import-untyped]  # PyMuPDF < 1.24
+        import fitz  # PyMuPDF < 1.24 (untyped shim)
 
-        return cast("ModuleType", fitz)
+        return fitz  # type: ignore[no-any-return]
 
 
 def extract_pdf_text(content: bytes) -> str:

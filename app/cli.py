@@ -8,7 +8,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from app.config import load_config
+from app.config import Config, load_config
 from app.db import connect, init_db
 from app.util import utcnow_iso
 
@@ -499,9 +499,9 @@ def cmd_apply_draft(args: argparse.Namespace) -> int:
         conn.close()
 
 
-def _source_text(cfg: object, row: sqlite3.Row) -> str:
+def _source_text(cfg: Config, row: sqlite3.Row) -> str:
     """Text used for claim extraction: book pages or archived content."""
-    archive_dir = cfg.archive_dir
+    archive_dir = Path(cfg.archive_dir)
     if row["doc_kind"] == "book":
         from modules.book_pipeline import load_pages
 
