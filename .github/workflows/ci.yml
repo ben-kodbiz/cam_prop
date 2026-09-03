@@ -2,8 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
@@ -30,3 +31,5 @@ jobs:
           python -m app export
           python -m app queue
           python -m app stats
+          python -m app legal
+          python -m app report --kind weekly
