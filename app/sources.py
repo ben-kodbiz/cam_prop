@@ -27,12 +27,15 @@ def create_source(
     source_id: str | None = None,
     reliability_notes: str | None = None,
 ) -> str:
-    """Register a source. Content is hashed; optional local archive is created.
+    """Register a web source. Content is hashed; optional local archive is created.
 
     Returns the source ID. Raises ValueError on duplicates or unknown type.
     """
     if source_type not in SOURCE_TIERS:
         msg = f"unknown source_type {source_type!r}; known: {sorted(SOURCE_TIERS)}"
+        raise ValueError(msg)
+    if source_type == "book":
+        msg = "use create_book_source() for books (local PDF files)"
         raise ValueError(msg)
     tier = SOURCE_TIERS[source_type]
     canonical = canonicalize_url(url)
@@ -60,8 +63,9 @@ def create_source(
     conn.execute(
         """INSERT INTO sources (id, url, canonical_url, title, publisher, author,
              published_at, retrieved_at, source_type, source_tier, language,
-             content_hash, archive_path, reliability_notes, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+             content_hash, archive_path, doc_kind, reliability_notes,
+             created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'url', ?, ?, ?)""",
         (
             sid,
             url,
@@ -76,6 +80,110 @@ def create_source(
             language,
             content_hash,
             archive_path,
+            reliability_notes,
+            now,
+            now,
+        ),
+    )
+    return sid
+
+
+def create_book_source(
+    conn: sqlite3.Connection,
+    *,
+    path: str | Path,
+    title: str,
+    author: str | None = None,
+    publisher: str | None = None,
+    year: str | None = None,
+    isbn: str | None = None,
+    language: str = "en",
+    content: bytes | None = None,
+    book_pages: int | None = None,
+    source_id: str | None = None,
+    reliability_notes: str | None = None,
+    archive_dir: Path | None = None,
+) -> str:
+    """Register a book as a local PDF source of truth.
+
+    The PDF is hashed and optionally copied into the archive so evidence
+    integrity can be verified later. Books are tier 3 (specialist) sources;
+    they are primary for what the book itself says, not for world facts.
+    """
+    file_path = Path(path).resolve()
+    if not file_path.is_file():
+        msg = f"book file not found: {file_path}"
+        raise ValueError(msg)
+    data = content if content is not None else file_path.read_bytes()
+    content_hash = sha256_bytes(data)
+
+    # dedupe by content hash: same PDF file never registered twice
+    existing = conn.execute(
+        "SELECT id FROM sources WHERE content_hash = ? AND doc_kind = 'book'",
+        (content_hash,),
+    ).fetchone()
+    if existing:
+        msg = f"duplicate book: identical file already registered as {existing['id']}"
+        raise DuplicateSourceError(msg, existing["id"])
+
+    now = utcnow_iso()
+    sid = source_id or next_id(conn, "sources", "SRC")
+    local_path = str(file_path)
+    archive_path: str | None = None
+    if archive_dir is not None:
+        rel = Path("books") / f"{sid}"
+        dest = archive_dir / rel
+        dest.mkdir(parents=True, exist_ok=True)
+        (dest / "book.pdf").write_bytes(data)
+        (dest / "sha256.txt").write_text(content_hash + "\n", encoding="utf-8")
+        (dest / "metadata.json").write_text(
+            json.dumps(
+                {
+                    "id": sid,
+                    "title": title,
+                    "author": author,
+                    "isbn": isbn,
+                    "pages": book_pages,
+                    "sha256": content_hash,
+                    "imported_at": now,
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        archive_path = str(rel)
+
+    # synthetic canonical URL for books: book://<isbn|slug>
+    slug = isbn or Path(title).as_posix().replace(" ", "-")[:60]
+    canonical = f"book://{slug}"
+    conn.execute(
+        """INSERT INTO sources (id, url, canonical_url, title, publisher, author,
+             published_at, retrieved_at, source_type, source_tier, language,
+             content_hash, archive_path, local_path, doc_kind, book_author,
+             book_isbn, book_publisher, book_year, book_pages, reliability_notes,
+             created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'book', 3, ?, ?, ?, ?, 'book',
+                   ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            sid,
+            canonical,
+            canonical,
+            title,
+            publisher,
+            author,
+            year,
+            now,
+            language,
+            content_hash,
+            archive_path,
+            local_path,
+            author,
+            isbn,
+            publisher,
+            year,
+            book_pages,
             reliability_notes,
             now,
             now,
@@ -139,9 +247,32 @@ def find_by_url(conn: sqlite3.Connection, url: str) -> sqlite3.Row | None:
 
 def verify_archive(archive_dir: Path, source_row: sqlite3.Row) -> bool:
     """Re-hash archived content to prove evidence integrity (agentodo §23)."""
+    if source_row["doc_kind"] == "book":
+        base = archive_dir / source_row["archive_path"] if source_row["archive_path"] else None
+        path = (base / "book.pdf") if base else None
+        if path is None or not path.is_file():
+            # fall back to the registered local file
+            local = source_row["local_path"]
+            path = Path(local) if local else None
+        if path is None or not path.is_file():
+            return False
+        result: bool = sha256_bytes(path.read_bytes()) == source_row["content_hash"]
+        return result
     if not source_row["archive_path"]:
         return False
     path = archive_dir / source_row["archive_path"] / "source.txt"
+    if not path.is_file():
+        return False
+    result = sha256_bytes(path.read_bytes()) == source_row["content_hash"]
+    return result
+
+
+def verify_local_book(source_row: sqlite3.Row) -> bool:
+    """Verify a book source against its registered local file."""
+    local = source_row["local_path"]
+    if not local:
+        return False
+    path = Path(local)
     if not path.is_file():
         return False
     result: bool = sha256_bytes(path.read_bytes()) == source_row["content_hash"]

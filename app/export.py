@@ -44,6 +44,8 @@ def _claim_to_dict(conn: sqlite3.Connection, row: sqlite3.Row, site_url: str) ->
                 "title": e["title"],
                 "url": e["canonical_url"],
                 "excerpt": e["excerpt"],
+                "page_number": e["page_number"],
+                "section": e["section"],
                 "source_tier": e["source_tier"],
                 "published_at": e["published_at"],
                 "strength": e["strength"],
@@ -90,6 +92,11 @@ def export_all(db_path: str | Path, out_dir: str | Path, *, site_url: str = "") 
                         "retrieved_at": s["retrieved_at"],
                         "archive_path": s["archive_path"],
                         "content_hash": s["content_hash"],
+                        "doc_kind": s["doc_kind"] or "url",
+                        "book_author": s["book_author"],
+                        "book_year": s["book_year"],
+                        "book_pages": s["book_pages"],
+                        "book_isbn": s["book_isbn"],
                     }
                 )
 

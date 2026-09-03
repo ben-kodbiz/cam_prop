@@ -1,0 +1,17 @@
+{
+  "$comment": "RSS/Atom feeds polled by `python -m app ingest-rss`. Add feeds here; entries are deduped by canonical URL automatically.",
+  "feeds": [
+    {
+      "name": "example-news",
+      "url": "https://example.org/feed.xml",
+      "source_type": "news",
+      "enabled": false
+    },
+    {
+      "name": "example-ngo",
+      "url": "https://example.org/press-releases.xml",
+      "source_type": "ngo_report",
+      "enabled": false
+    }
+  ]
+}

@@ -18,19 +18,30 @@ async function loadSources() {
     const el = document.createElement("article");
     el.className = "card";
     const h = document.createElement("h3");
-    const a = document.createElement("a");
-    a.href = s.url;
-    a.target = "_blank";
-    a.rel = "noopener";
-    a.textContent = s.title;
-    h.appendChild(a);
+    if (s.doc_kind === "book") {
+      h.textContent = s.title + (s.book_year ? " (" + s.book_year + ")" : "");
+    } else {
+      const a = document.createElement("a");
+      a.href = s.url;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.textContent = s.title;
+      h.appendChild(a);
+    }
     el.appendChild(h);
     const meta = document.createElement("p");
     meta.className = "meta";
-    meta.textContent = (s.publisher || "Unknown publisher") +
-      " · " + tierName(s.source_tier) +
-      (s.published_at ? " · " + s.published_at : "") +
-      " · " + s.id;
+    if (s.doc_kind === "book") {
+      const author = s.book_author || "Unknown author";
+      const pages = s.book_pages ? " · " + s.book_pages + " pp." : "";
+      const isbn = s.book_isbn ? " · ISBN " + s.book_isbn : "";
+      meta.textContent = author + pages + isbn + " · " + tierName(s.source_tier) + " · " + s.id;
+    } else {
+      meta.textContent = (s.publisher || "Unknown publisher") +
+        " · " + tierName(s.source_tier) +
+        (s.published_at ? " · " + s.published_at : "") +
+        " · " + s.id;
+    }
     el.appendChild(meta);
     container.appendChild(el);
   });

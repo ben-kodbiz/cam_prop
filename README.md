@@ -26,8 +26,15 @@ python -m app seed         # load fixture data (all marked SEED)
 python -m app export       # write data/generated/*.json and web/data/*.json
 python -m app queue        # show pending review queue
 python -m app stats        # database statistics
-```
 
+# Ingestion
+python -m app feeds                        # list enabled RSS feeds
+python -m app ingest-rss                    # fetch feeds, register new sources
+pip install -e ".[pdf]"                     # once, for PDF book support
+python -m app ingest-book FILE.pdf --title "…" --author "…" --year 2020
+python -m app books                         # list imported books
+python -m app book-search SRC-… "query"     # search inside a book
+```
 Serve the static site (any static file server works):
 
 ```bash

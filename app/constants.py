@@ -73,6 +73,7 @@ SOURCE_TIERS: dict[str, int] = {
     "academic": 3,
     "ngo_report": 3,
     "investigative_journalism": 3,
+    "book": 3,
     "social_media": 4,
 }
 

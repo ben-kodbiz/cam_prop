@@ -20,7 +20,13 @@ function evidenceSection(title, items, sources) {
     link.href = ev.url;
     link.target = "_blank";
     link.rel = "noopener";
-    link.textContent = (ev.publisher || "Source") + (ev.published_at ? " · " + ev.published_at : "");
+    let label = (ev.publisher || "Source") + (ev.published_at ? " · " + ev.published_at : "");
+    if (ev.page_number) {
+      label += " · p." + ev.page_number;
+    } else if (ev.section) {
+      label += " · " + ev.section;
+    }
+    link.textContent = label;
     src.appendChild(link);
     src.className = "source";
     item.appendChild(src);

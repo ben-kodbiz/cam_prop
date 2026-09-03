@@ -21,6 +21,14 @@ CREATE TABLE IF NOT EXISTS sources (
     language TEXT NOT NULL DEFAULT 'en',
     content_hash TEXT NOT NULL,             -- SHA-256 of archived content
     archive_path TEXT,                      -- relative path in archive/
+    local_path TEXT,                        -- absolute path for local files (books)
+    doc_kind TEXT CHECK (doc_kind IN ('url', 'book')),
+                                            -- 'book' sources are local PDF files
+    book_author TEXT,
+    book_isbn TEXT,
+    book_publisher TEXT,
+    book_year TEXT,
+    book_pages INTEGER,                     -- total page count
     reliability_notes TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL

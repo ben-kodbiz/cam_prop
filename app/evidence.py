@@ -46,11 +46,23 @@ def create_evidence(
 
     Excerpts must be short (<= 500 chars) — never mirror copyrighted content.
     """
-    if not conn.execute("SELECT 1 FROM sources WHERE id = ?", (source_id,)).fetchone():
+    source_row = conn.execute("SELECT * FROM sources WHERE id = ?", (source_id,)).fetchone()
+    if source_row is None:
         msg = f"source {source_id} does not exist"
         raise EvidenceError(msg)
     if excerpt is not None and len(excerpt) > 500:
         msg = "excerpt exceeds 500 characters; store a short quotation plus a pointer"
+        raise EvidenceError(msg)
+    if page_number is not None and source_row["doc_kind"] != "book":
+        msg = "page_number is only valid for book sources; cite section/URL instead"
+        raise EvidenceError(msg)
+    if (
+        page_number is not None
+        and source_row["book_pages"] is not None
+        and page_number.isdigit()
+        and not 1 <= int(page_number) <= source_row["book_pages"]
+    ):
+        msg = f"page_number {page_number} outside book range 1-{source_row['book_pages']}"
         raise EvidenceError(msg)
     dims = _validate_dimensions(dimensions or {})
 

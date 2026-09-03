@@ -190,6 +190,107 @@ def cmd_backup(args: argparse.Namespace) -> int:
         src.close()
 
 
+def cmd_ingest_rss(args: argparse.Namespace) -> int:
+    cfg = load_config(env_file=args.env)
+    from app.rss_pipeline import DEFAULT_FEEDS_PATH, ingest_all
+
+    conn = connect(cfg.db_path)
+    try:
+        results = ingest_all(
+            conn,
+            feeds_path=args.feeds or DEFAULT_FEEDS_PATH,
+            archive_dir=cfg.archive_dir,
+            fetcher=None,
+        )
+        conn.commit()
+        total = {"discovered": 0, "registered": 0, "duplicates": 0, "errors": 0}
+        for r in results:
+            print(json.dumps(r.to_dict(), ensure_ascii=False))
+            for k in total:
+                total[k] += getattr(r, k)
+        print(f"-- {len(results)} feeds: {json.dumps(total)}")
+        return 0 if total["errors"] == 0 else 1
+    finally:
+        conn.close()
+
+
+def cmd_feeds(args: argparse.Namespace) -> int:
+    from app.rss_pipeline import DEFAULT_FEEDS_PATH, load_feeds
+
+    feeds = load_feeds(args.feeds or DEFAULT_FEEDS_PATH)
+    if not feeds:
+        print("no enabled feeds configured (see data/feeds.json)")
+        return 0
+    for f in feeds:
+        print(f"{f.name}: {f.url} [{f.source_type}]")
+    print(f"-- {len(feeds)} enabled feeds")
+    return 0
+
+
+def cmd_ingest_book(args: argparse.Namespace) -> int:
+    cfg = load_config(env_file=args.env)
+    from modules.book_pipeline import import_book
+
+    conn = connect(cfg.db_path)
+    try:
+        result = import_book(
+            conn,
+            path=args.path,
+            title=args.title,
+            author=args.author,
+            publisher=args.publisher,
+            year=args.year,
+            isbn=args.isbn,
+            language=args.language,
+            archive_dir=cfg.archive_dir,
+            extract_pages=not args.no_pages,
+        )
+        conn.commit()
+        print(json.dumps(result.to_dict(), indent=2, ensure_ascii=False))
+        return 0
+    except (ValueError, RuntimeError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    finally:
+        conn.close()
+
+
+def cmd_book_search(args: argparse.Namespace) -> int:
+    cfg = load_config(env_file=args.env)
+    from modules.book_pipeline import get_book_source, search_book
+
+    conn = connect(cfg.db_path, readonly=True)
+    try:
+        row = get_book_source(conn, args.source_id)
+        if row is None:
+            print(f"error: book source {args.source_id} not found", file=sys.stderr)
+            return 1
+        hits = search_book(cfg.archive_dir, args.source_id, args.query)
+        for h in hits:
+            page = h.get("page", "?")
+            excerpt = str(h.get("excerpt", ""))[:200]
+            print(f"p.{page}: {excerpt}")
+        print(f"-- {len(hits)} pages matched")
+        return 0
+    finally:
+        conn.close()
+
+
+def cmd_books(args: argparse.Namespace) -> int:
+    from modules.book_pipeline import list_books
+
+    cfg = load_config(env_file=args.env)
+    conn = connect(cfg.db_path, readonly=True)
+    try:
+        for b in list_books(conn):
+            year = f" ({b['book_year']})" if b["book_year"] else ""
+            pages = f", {b['book_pages']} pp." if b["book_pages"] else ""
+            print(f"{b['id']}: {b['title']}{year}{pages} — {b['book_author'] or 'unknown author'}")
+        return 0
+    finally:
+        conn.close()
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="open-evidence", description=__doc__)
     p.add_argument("--env", default=None, help="path to .env file")
@@ -236,6 +337,40 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("stats", help="database statistics")
     sp.set_defaults(func=cmd_stats)
+
+    sp = sub.add_parser("feeds", help="list configured RSS feeds")
+    sp.add_argument("--feeds", default=None, help="path to feeds.json")
+    sp.set_defaults(func=cmd_feeds)
+
+    sp = sub.add_parser(
+        "ingest-rss",
+        help="fetch configured RSS feeds and register new sources",
+    )
+    sp.add_argument("--feeds", default=None, help="path to feeds.json")
+    sp.set_defaults(func=cmd_ingest_rss)
+
+    sp = sub.add_parser("ingest-book", help="import a local PDF book as a source")
+    sp.add_argument("path", help="path to the PDF file")
+    sp.add_argument("--title", required=True)
+    sp.add_argument("--author", default=None)
+    sp.add_argument("--publisher", default=None)
+    sp.add_argument("--year", default=None)
+    sp.add_argument("--isbn", default=None)
+    sp.add_argument("--language", default="en")
+    sp.add_argument(
+        "--no-pages",
+        action="store_true",
+        help="skip per-page text extraction (still hashed + archived)",
+    )
+    sp.set_defaults(func=cmd_ingest_book)
+
+    sp = sub.add_parser("books", help="list imported books")
+    sp.set_defaults(func=cmd_books)
+
+    sp = sub.add_parser("book-search", help="keyword search inside an imported book")
+    sp.add_argument("source_id")
+    sp.add_argument("query")
+    sp.set_defaults(func=cmd_book_search)
 
     sp = sub.add_parser("backup", help="backup the SQLite database")
     sp.add_argument("--out", default=None)
