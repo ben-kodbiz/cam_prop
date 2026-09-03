@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Claims — Open Evidence</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script defer src="/js/claims.js"></script>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/">Open Evidence</a>
+    <nav aria-label="Primary">
+      <a href="/claims.html">Claims</a>
+      <a href="/companies.html">Companies</a>
+      <a href="/sources.html">Sources</a>
+      <a href="/alternatives.html">Alternatives</a>
+      <a href="/methodology.html">Methodology</a>
+      <a href="/about.html">About</a>
+    </nav>
+  </header>
+  <main>
+    <h1>Claims</h1>
+    <form role="search" class="search" id="claims-search">
+      <label class="visually-hidden" for="q">Search claims</label>
+      <input id="q" name="q" type="search" placeholder="Search claims…">
+      <select id="status" aria-label="Filter by status">
+        <option value="">All statuses</option>
+        <option value="supported">Supported</option>
+        <option value="mostly_supported">Mostly supported</option>
+        <option value="misleading">Misleading</option>
+        <option value="unsupported">Unsupported</option>
+        <option value="contradicted">Contradicted</option>
+        <option value="disputed">Disputed</option>
+        <option value="insufficient_evidence">Insufficient evidence</option>
+        <option value="unknown">Unknown</option>
+      </select>
+      <button type="submit">Search</button>
+    </form>
+    <div id="claims-list" class="card-list">
+      <p class="loading">Loading claims…</p>
+    </div>
+  </main>
+  <footer>
+    <p>Open Evidence — evidence first, attribution always, uncertainty explicitly stated.</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,31 @@
+[
+  {
+    "id": "CLM-2026-0001",
+    "claim_text": "SEED: The court issued provisional measures in the case.",
+    "speaker": "SEED Government Ministry",
+    "speaker_type": "government",
+    "published_at": "2024-02-02",
+    "status": "supported",
+    "confidence": 0.9,
+    "topic": "international_law",
+    "importance": "high",
+    "last_reviewed": "2026-09-03T20:13:17+00:00",
+    "revision": 3,
+    "url": "/claim/CLM-2026-0001/",
+    "evidence": [
+      {
+        "evidence_id": "EVD-2026-0001",
+        "source_id": "SRC-2026-0001",
+        "relationship": "supports",
+        "publisher": "International Court of Justice",
+        "title": "Application of the Genocide Convention (Order on Provisional Measures)",
+        "url": "https://icj-cij.org/sites/default/files/case-related/186/186-20240126-ord-01-00-en.pdf",
+        "excerpt": "SEED EXCERPT: The Court indicates provisional measures.",
+        "source_tier": 1,
+        "published_at": "2024-01-26",
+        "strength": 0.98
+      }
+    ],
+    "search_text": "seed the court issued provisional measures in the case"
+  }
+]

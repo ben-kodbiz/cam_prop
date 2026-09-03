@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Open Evidence — Evidence-based documentation of contested claims</title>
+  <meta name="description" content="Open Evidence documents contested claims, international-law records and corporate relationships. Evidence first, attribution always, uncertainty explicitly stated.">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta property="og:title" content="Open Evidence">
+  <meta property="og:description" content="Evidence-based documentation of contested claims, international records and corporate relationships.">
+  <meta property="og:type" content="website">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Open Evidence",
+    "description": "Evidence-based documentation of contested claims, international records and corporate relationships."
+  }
+  </script>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/">Open Evidence</a>
+    <nav aria-label="Primary">
+      <a href="/claims.html">Claims</a>
+      <a href="/companies.html">Companies</a>
+      <a href="/sources.html">Sources</a>
+      <a href="/alternatives.html">Alternatives</a>
+      <a href="/methodology.html">Methodology</a>
+      <a href="/about.html">About</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>Open Evidence</h1>
+      <p>Evidence-based documentation of contested claims,
+         international records and corporate relationships.</p>
+      <form action="/claims.html" method="get" role="search" class="search">
+        <label class="visually-hidden" for="q">Search claims</label>
+        <input id="q" name="q" type="search" placeholder="Search claims…">
+        <button type="submit">Search</button>
+      </form>
+    </section>
+
+    <section id="latest-claims" aria-labelledby="latest-h">
+      <h2 id="latest-h">Latest reviewed claims</h2>
+      <ul id="status-legend" class="status-legend">
+        <li><a href="/claims.html?status=supported" class="status supported">Supported</a></li>
+        <li><a href="/claims.html?status=misleading" class="status misleading">Misleading</a></li>
+        <li><a href="/claims.html?status=contradicted" class="status contradicted">Contradicted</a></li>
+        <li><a href="/claims.html?status=disputed" class="status disputed">Disputed</a></li>
+        <li><a href="/claims.html?status=unknown" class="status unknown">Unknown</a></li>
+      </ul>
+      <div id="claims-list" class="card-list" data-limit="10">
+        <p class="loading">Loading claims…</p>
+      </div>
+      <p><a href="/claims.html">All claims →</a></p>
+    </section>
+
+    <section id="corporate" aria-labelledby="corporate-h">
+      <h2 id="corporate-h">Corporate accountability</h2>
+      <div id="companies-list" class="card-list" data-limit="5">
+        <p class="loading">Loading…</p>
+      </div>
+      <p><a href="/companies.html">All companies →</a></p>
+    </section>
+
+    <section id="alternatives" aria-labelledby="alternatives-h">
+      <h2 id="alternatives-h">Open-source alternatives</h2>
+      <div id="alternatives-list" class="card-list" data-limit="5">
+        <p class="loading">Loading…</p>
+      </div>
+      <p><a href="/alternatives.html">All alternatives →</a></p>
+    </section>
+  </main>
+
+  <footer>
+    <p>Open Evidence — evidence first, attribution always, uncertainty explicitly stated.
+       <a href="/methodology.html">Methodology</a> · <a href="/about.html">About</a></p>
+  </footer>
+  <script src="/js/app.js" defer></script>
+</body>
+</html>

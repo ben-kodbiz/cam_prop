@@ -1,0 +1,10 @@
+{
+  "name": "Open Evidence",
+  "short_name": "OpenEvidence",
+  "description": "Evidence-based documentation of contested claims, international records and corporate relationships.",
+  "start_url": "/",
+  "display": "browser",
+  "background_color": "#fdfdfb",
+  "theme_color": "#0b5394",
+  "icons": []
+}
