@@ -56,12 +56,40 @@ def _claim_to_dict(conn: sqlite3.Connection, row: sqlite3.Row, site_url: str) ->
     }
 
 
-def export_all(db_path: str | Path, out_dir: str | Path, *, site_url: str = "") -> dict[str, int]:
-    """Write data/claims.json, companies.json, sources.json, alternatives.json.
+def _source_to_dict(conn: sqlite3.Connection, source_id: str) -> dict[str, Any] | None:
+    s = conn.execute("SELECT * FROM sources WHERE id = ?", (source_id,)).fetchone()
+    if s is None:
+        return None
+    return {
+        "id": s["id"],
+        "title": s["title"],
+        "publisher": s["publisher"],
+        "url": s["canonical_url"],
+        "source_type": s["source_type"],
+        "source_tier": s["source_tier"],
+        "published_at": s["published_at"],
+        "retrieved_at": s["retrieved_at"],
+        "archive_path": s["archive_path"],
+        "content_hash": s["content_hash"],
+        "doc_kind": s["doc_kind"] or "url",
+        "book_author": s["book_author"],
+        "book_year": s["book_year"],
+        "book_pages": s["book_pages"],
+        "book_isbn": s["book_isbn"],
+    }
 
-    Returns counts. Only approved claims / relationships / alternatives are
-    included; sources referenced by exported evidence are included.
+
+def export_all(db_path: str | Path, out_dir: str | Path, *, site_url: str = "") -> dict[str, int]:
+    """Write claims/sources/companies/alternatives/legal JSON for the site.
+
+    Returns counts. Only approved claims / relationships / alternatives /
+    legal documents are included; sources referenced by exported evidence,
+    legal documents or book imports are included.
     """
+    from modules.alternatives import alternative_score, migration_guide_fields
+    from modules.corporate import relationship_timeline
+    from modules.international_law import document_summary, documents_for_claim
+
     from app.db import connect
 
     out = Path(out_dir)
@@ -71,34 +99,29 @@ def export_all(db_path: str | Path, out_dir: str | Path, *, site_url: str = "") 
         claims = conn.execute(
             "SELECT * FROM claims WHERE review_status = 'approved' ORDER BY id"
         ).fetchall()
-        claims_data = [_claim_to_dict(conn, r, site_url) for r in claims]
-
+        claims_data = []
         source_ids: set[str] = set()
-        for c in claims_data:
-            source_ids.update(e["source_id"] for e in c["evidence"])
-        sources_data = []
-        for sid in sorted(source_ids):
-            s = conn.execute("SELECT * FROM sources WHERE id = ?", (sid,)).fetchone()
-            if s:
-                sources_data.append(
+        for r in claims:
+            claim = _claim_to_dict(conn, r, site_url)
+            legal = documents_for_claim(conn, r["id"])
+            if legal:
+                claim["legal_documents"] = [
                     {
-                        "id": s["id"],
-                        "title": s["title"],
-                        "publisher": s["publisher"],
-                        "url": s["canonical_url"],
-                        "source_type": s["source_type"],
-                        "source_tier": s["source_tier"],
-                        "published_at": s["published_at"],
-                        "retrieved_at": s["retrieved_at"],
-                        "archive_path": s["archive_path"],
-                        "content_hash": s["content_hash"],
-                        "doc_kind": s["doc_kind"] or "url",
-                        "book_author": s["book_author"],
-                        "book_year": s["book_year"],
-                        "book_pages": s["book_pages"],
-                        "book_isbn": s["book_isbn"],
+                        "id": ld["id"],
+                        "body": ld["body"],
+                        "case_or_document": ld["case_or_document"],
+                        "document_type": ld["document_type"],
+                        "date": ld["doc_date"],
+                        "finding": ld["finding"],
+                        "does_not_establish": ld["does_not_establish"],
                     }
-                )
+                    for ld in legal
+                ]
+                for ld in legal:
+                    if ld["source_id"]:
+                        source_ids.add(ld["source_id"])
+            claims_data.append(claim)
+            source_ids.update(e["source_id"] for e in claim["evidence"])
 
         rels = conn.execute(
             """SELECT cr.*, o.name AS company_name FROM corporate_relationships cr
@@ -107,6 +130,7 @@ def export_all(db_path: str | Path, out_dir: str | Path, *, site_url: str = "") 
         ).fetchall()
         companies_data = []
         for r in rels:
+            timeline = relationship_timeline(conn, r["company_org_id"])
             companies_data.append(
                 {
                     "id": r["id"],
@@ -120,6 +144,7 @@ def export_all(db_path: str | Path, out_dir: str | Path, *, site_url: str = "") 
                     "company_response": r["company_response"],
                     "evidence_ids": json.loads(r["evidence_ids_json"] or "[]"),
                     "last_reviewed": r["last_reviewed"],
+                    "timeline": list(timeline),
                     "url": f"/company/{r['company_name'].lower().replace(' ', '-')}/",
                 }
             )
@@ -127,30 +152,65 @@ def export_all(db_path: str | Path, out_dir: str | Path, *, site_url: str = "") 
         alts = conn.execute(
             "SELECT * FROM alternatives WHERE review_status = 'approved' ORDER BY category, id"
         ).fetchall()
-        alternatives_data = [
-            {
-                "id": a["id"],
-                "product": a["product"],
-                "company": a["company"],
-                "category": a["category"],
-                "alternative": a["alternative"],
-                "alternative_license": a["alternative_license"],
-                "alternative_hosting": a["alternative_hosting"],
-                "self_hosting_available": bool(a["self_hosting_available"]),
-                "migration_difficulty": a["migration_difficulty"],
-                "privacy_notes": a["privacy_notes"],
-                "alternative_url": a["alternative_url"],
-            }
-            for a in alts
-        ]
+        alternatives_data = []
+        for a in alts:
+            guide = migration_guide_fields(a)
+            alternatives_data.append(
+                {
+                    "id": a["id"],
+                    "product": a["product"],
+                    "company": a["company"],
+                    "category": a["category"],
+                    "alternative": a["alternative"],
+                    "alternative_license": a["alternative_license"],
+                    "alternative_hosting": a["alternative_hosting"],
+                    "self_hosting_available": bool(a["self_hosting_available"]),
+                    "migration_difficulty": a["migration_difficulty"],
+                    "privacy_notes": a["privacy_notes"],
+                    "alternative_url": a["alternative_url"],
+                    "score": alternative_score(a),
+                    "score_dimensions": json.loads(a["score_json"] or "{}"),
+                    "migration_guide": guide,
+                }
+            )
+
+        # sources: referenced by evidence, legal docs, alternatives + all books
+        for a in alts:
+            source_ids.update(json.loads(a["source_ids_json"] or "[]"))
+        for s in conn.execute("SELECT id FROM sources WHERE doc_kind = 'book'").fetchall():
+            source_ids.add(s["id"])
+
+        legal = conn.execute(
+            "SELECT * FROM legal_documents WHERE review_status = 'approved'"
+            " ORDER BY doc_date DESC, id"
+        ).fetchall()
+        legal_data = []
+        for ld in legal:
+            entry = document_summary(ld)
+            entry["claims"] = [
+                c["id"]
+                for c in conn.execute(
+                    """SELECT c.id FROM claim_legal_documents cld
+                       JOIN claims c ON c.id = cld.claim_id
+                       WHERE cld.legal_document_id = ? AND c.review_status = 'approved'""",
+                    (ld["id"],),
+                ).fetchall()
+            ]
+            legal_data.append(entry)
+            if ld["source_id"]:
+                source_ids.add(ld["source_id"])
+
+        sources_data = [_source_to_dict(conn, sid) for sid in sorted(source_ids)]
+        sources_data = [s for s in sources_data if s is not None]
     finally:
         conn.close()
 
-    payloads = {
+    payloads: dict[str, list[Any]] = {
         "claims.json": claims_data,
         "sources.json": sources_data,
         "companies.json": companies_data,
         "alternatives.json": alternatives_data,
+        "legal.json": legal_data,
     }
     counts: dict[str, int] = {}
     for name, data in payloads.items():

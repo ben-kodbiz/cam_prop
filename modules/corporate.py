@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from typing import Any
 
 from app import audit
 from app.util import next_id, utcnow_iso
@@ -113,9 +114,6 @@ def add_company_statement(
     statement_id: str | None = None,
 ) -> str:
     """Record a company response — prevents one-sided documentation (§13)."""
-    from app.constants import ID_PREFIXES as _P
-
-    assert "statement" in _P
     if not conn.execute("SELECT 1 FROM organizations WHERE id = ?", (organization_id,)).fetchone():
         msg = f"organization {organization_id} does not exist"
         raise CorporateError(msg)
@@ -150,7 +148,7 @@ def add_company_statement(
     return sid
 
 
-def relationship_summary(conn: sqlite3.Connection, relationship_id: str) -> dict:
+def relationship_summary(conn: sqlite3.Connection, relationship_id: str) -> dict[str, Any]:
     """Answer the six accountability questions (§13) from the database."""
     row = conn.execute(
         """SELECT cr.*, o.name AS company_name, cp.name AS counterpart_name
@@ -194,8 +192,127 @@ def relationship_summary(conn: sqlite3.Connection, relationship_id: str) -> dict
     }
 
 
-def iter_relationships(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+def iter_relationships(
+    conn: sqlite3.Connection,
+    *,
+    approved_only: bool = False,
+) -> list[sqlite3.Row]:
+    q = """SELECT cr.*, o.name AS company_name FROM corporate_relationships cr
+           JOIN organizations o ON o.id = cr.company_org_id"""
+    if approved_only:
+        q += " WHERE cr.review_status = 'approved'"
+    q += " ORDER BY cr.created_at"
+    return conn.execute(q).fetchall()
+
+
+def company_directory(
+    conn: sqlite3.Connection,
+    *,
+    approved_only: bool = True,
+) -> list[dict[str, object]]:
+    """All companies with relationships, grouped: one entry per company.
+
+    This is the boycott-decision view (agentodo §44): documented
+    relationships with evidence — users decide what to do with it.
+    """
+    rels = iter_relationships(conn, approved_only=approved_only)
+    by_company: dict[str, dict[str, Any]] = {}
+    for r in rels:
+        entry = by_company.setdefault(
+            r["company_name"],
+            {
+                "company": r["company_name"],
+                "relationships": [],
+                "classifications": [],
+            },
+        )
+        entry["relationships"].append(r["id"])
+        if r["classification"] not in entry["classifications"]:
+            entry["classifications"].append(r["classification"])
+    return list(by_company.values())
+
+
+def relationship_timeline(conn: sqlite3.Connection, company_org_id: str) -> list[dict[str, Any]]:
+    """Chronological timeline for one company (agentodo §5: 'timeline').
+
+    Mixes relationship milestones, company statements and approved claims
+    mentioning the company, all sorted by date. Dates are strings; entries
+    without a date sort last.
+    """
+    entries: list[dict[str, Any]] = []
+
+    for r in conn.execute(
+        "SELECT * FROM corporate_relationships WHERE company_org_id = ?", (company_org_id,)
+    ).fetchall():
+        for field, label in (
+            ("start_date", "relationship start"),
+            ("end_date", "relationship end"),
+        ):
+            if r[field]:
+                entries.append(
+                    {
+                        "date": r[field],
+                        "kind": "relationship",
+                        "label": f"{label}: {r['service']} for {r['customer']}"
+                        + f" ({r['classification']})",
+                        "id": r["id"],
+                    }
+                )
+        if r["company_response"]:
+            entries.append(
+                {
+                    "date": r["updated_at"][:10] if r["updated_at"] else None,
+                    "kind": "response",
+                    "label": f"Company response: {r['company_response']}",
+                    "id": r["id"],
+                }
+            )
+
+    for s in conn.execute(
+        "SELECT * FROM company_statements WHERE organization_id = ?", (company_org_id,)
+    ).fetchall():
+        entries.append(
+            {
+                "date": s["statement_date"],
+                "kind": "statement",
+                "label": f"Company statement ({s['statement_type']}): {s['statement_text']}",
+                "id": s["id"],
+            }
+        )
+
+    for c in conn.execute(
+        """SELECT c.* FROM claims c
+           WHERE c.organization_id = ? AND c.review_status = 'approved'""",
+        (company_org_id,),
+    ).fetchall():
+        entries.append(
+            {
+                "date": c["published_at"],
+                "kind": "claim",
+                "label": f"Reviewed claim: {c['claim_text']}",
+                "id": c["id"],
+            }
+        )
+
+    entries.sort(key=lambda e: (e["date"] is None, str(e["date"])))
+    return entries
+
+
+def claims_for_relationship(
+    conn: sqlite3.Connection,
+    relationship_id: str,
+) -> list[sqlite3.Row]:
+    """Approved claims about this relationship's company + service area."""
+    row = conn.execute(
+        "SELECT company_org_id FROM corporate_relationships WHERE id = ?",
+        (relationship_id,),
+    ).fetchone()
+    if row is None:
+        msg = f"relationship {relationship_id} does not exist"
+        raise CorporateError(msg)
     return conn.execute(
-        """SELECT cr.*, o.name AS company_name FROM corporate_relationships cr
-           JOIN organizations o ON o.id = cr.company_org_id ORDER BY cr.created_at"""
+        """SELECT c.* FROM claims c
+           WHERE c.organization_id = ? AND c.review_status = 'approved'
+           ORDER BY c.published_at DESC""",
+        (row["company_org_id"],),
     ).fetchall()

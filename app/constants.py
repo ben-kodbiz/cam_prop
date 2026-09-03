@@ -56,6 +56,18 @@ LEGAL_RECORD_TYPES: tuple[str, ...] = (
     "political_resolution",
 )
 
+# Courts and bodies tracked by the international-law module (agentodo §11).
+LEGAL_BODIES: tuple[str, ...] = (
+    "ICJ",
+    "ICC",
+    "UNSC",
+    "UNGA",
+    "UNHRC",
+    "UN Commission of Inquiry",
+    "international treaty body",
+    "national court",
+)
+
 SOURCE_TIERS: dict[str, int] = {
     "icj": 1,
     "icc": 1,
@@ -99,15 +111,16 @@ EVIDENCE_DIMENSIONS: tuple[str, ...] = (
 )
 
 ID_PREFIXES: dict[str, str] = {
-    "source": "SRC",
-    "claim": "CLM",
+    "sources": "SRC",
+    "claims": "CLM",
     "evidence": "EVD",
-    "organization": "ORG",
-    "person": "PER",
-    "event": "EVT",
-    "relationship": "CORP",
-    "statement": "CST",
-    "alternative": "ALT",
-    "review": "REV",
-    "publication": "PUB",
+    "organizations": "ORG",
+    "people": "PER",
+    "events": "EVT",
+    "corporate_relationships": "CORP",
+    "company_statements": "CST",
+    "alternatives": "ALT",
+    "reviews": "REV",
+    "publications": "PUB",
+    "legal_documents": "LGL",
 }

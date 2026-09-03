@@ -9,7 +9,7 @@
     "confidence": 0.9,
     "topic": "international_law",
     "importance": "high",
-    "last_reviewed": "2026-09-03T20:13:17+00:00",
+    "last_reviewed": "2026-09-03T21:52:06+00:00",
     "revision": 3,
     "url": "/claim/CLM-2026-0001/",
     "evidence": [
@@ -21,11 +21,24 @@
         "title": "Application of the Genocide Convention (Order on Provisional Measures)",
         "url": "https://icj-cij.org/sites/default/files/case-related/186/186-20240126-ord-01-00-en.pdf",
         "excerpt": "SEED EXCERPT: The Court indicates provisional measures.",
+        "page_number": null,
+        "section": "Operative clause",
         "source_tier": 1,
         "published_at": "2024-01-26",
         "strength": 0.98
       }
     ],
-    "search_text": "seed the court issued provisional measures in the case"
+    "search_text": "seed the court issued provisional measures in the case",
+    "legal_documents": [
+      {
+        "id": "LGL-2026-0001",
+        "body": "ICJ",
+        "case_or_document": "SEED: Example Provisional Measures Order",
+        "document_type": "provisional_measure",
+        "date": "2024-01-26",
+        "finding": "SEED: The Court indicated certain provisional measures.",
+        "does_not_establish": "SEED: This order is not a judgment on the merits."
+      }
+    ]
   }
 ]

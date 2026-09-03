@@ -7,8 +7,30 @@
     "source_type": "icj",
     "source_tier": 1,
     "published_at": "2024-01-26",
-    "retrieved_at": "2026-09-03T20:13:17+00:00",
+    "retrieved_at": "2026-09-03T21:52:06+00:00",
     "archive_path": null,
-    "content_hash": "5af22bc6094f87084a5131facb58120304403cd114a0a131d20ad1d68223b324"
+    "content_hash": "5af22bc6094f87084a5131facb58120304403cd114a0a131d20ad1d68223b324",
+    "doc_kind": "url",
+    "book_author": null,
+    "book_year": null,
+    "book_pages": null,
+    "book_isbn": null
+  },
+  {
+    "id": "SRC-2026-0003",
+    "title": "SEED: ExampleCorp contract announcement",
+    "publisher": "ExampleCorp",
+    "url": "https://example.com/investors/contract-announcement.html",
+    "source_type": "company_statement",
+    "source_tier": 1,
+    "published_at": "2023-06-15",
+    "retrieved_at": "2026-09-03T21:52:06+00:00",
+    "archive_path": null,
+    "content_hash": "c078c7bbf09d9d36f51880af4b9cc54550625bd19c47f73f2893f1310b43c1a0",
+    "doc_kind": "url",
+    "book_author": null,
+    "book_year": null,
+    "book_pages": null,
+    "book_isbn": null
   }
 ]

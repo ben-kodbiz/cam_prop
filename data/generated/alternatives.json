@@ -1,1 +1,44 @@
-[]
+[
+  {
+    "id": "ALT-2026-0001",
+    "product": "SEED ExampleDrive",
+    "company": "ExampleCorp",
+    "category": "cloud_storage",
+    "alternative": "SEED Nextcloud",
+    "alternative_license": "AGPL-3.0",
+    "alternative_hosting": "self-hosted",
+    "self_hosting_available": true,
+    "migration_difficulty": "moderate",
+    "privacy_notes": "SEED: self-hosted storage keeps data under user control.",
+    "alternative_url": "https://example.org/nextcloud",
+    "score": 4.4,
+    "score_dimensions": {
+      "active_development": 4.0,
+      "community": 4.0,
+      "cost": 5.0,
+      "documentation": 4.0,
+      "lock_in": 5.0,
+      "migration": 3.0,
+      "open_source": 5.0,
+      "privacy": 5.0,
+      "security": 4.0,
+      "self_hostable": 5.0
+    },
+    "migration_guide": {
+      "replaces": "SEED ExampleDrive",
+      "why_choose": "",
+      "installation_difficulty": "moderate",
+      "self_hosting": true,
+      "data_migration": "SEED: export data via WebDAV, import into instance.",
+      "limitations": "SEED: sharing features differ from the commercial product.",
+      "security_considerations": "SEED: self-hosted storage keeps data under user control.",
+      "license": "AGPL-3.0",
+      "project_health": 4.0,
+      "score": 4.4,
+      "url": "https://example.org/nextcloud",
+      "sources": [
+        "SRC-2026-0003"
+      ]
+    }
+  }
+]

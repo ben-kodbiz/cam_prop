@@ -14,14 +14,31 @@ from publishing.generators import (
 def test_seed_creates_fixture_world(tmp_db, tmp_path):
     ids = seed(tmp_db, archive_dir=tmp_path / "archive")
     assert ids["claim_reviewed"].startswith("CLM-")
+    assert ids["legal_document"].startswith("LGL-")
+    assert ids["corporate_relationship"].startswith("CORP-")
+    assert ids["alternative"].startswith("ALT-")
     counts = {
         t: tmp_db.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
-        for t in ("sources", "claims", "evidence", "reviews", "audit_log")
+        for t in (
+            "sources",
+            "claims",
+            "evidence",
+            "reviews",
+            "audit_log",
+            "legal_documents",
+            "corporate_relationships",
+            "company_statements",
+            "alternatives",
+        )
     }
     assert counts["sources"] == 3
     assert counts["claims"] == 3
     assert counts["evidence"] == 2
-    assert counts["reviews"] == 1
+    assert counts["reviews"] == 4  # claim, legal, relationship, alternative
+    assert counts["legal_documents"] == 1
+    assert counts["corporate_relationships"] == 1
+    assert counts["company_statements"] == 1
+    assert counts["alternatives"] == 1
     assert counts["audit_log"] > 0
 
 

@@ -6,6 +6,32 @@ The format is based on Keep a Changelog; the project adheres to
 
 ## [Unreleased]
 
+### Added — Phases 4-6: law module, corporate depth, alternatives
+- Phase 4 — international-law database: `legal_documents` table (body,
+  case, document_type from a fixed vocabulary, finding, mandatory
+  `does_not_establish`, jurisdiction, source) + `claim_legal_documents`
+  cross-links; `LGL-` IDs; approved legal documents export to
+  `web/data/legal.json`; new legal page with type pills and search;
+  claims can display their linked legal records.
+- Phase 5 — corporate accountability depth: company directory (grouped
+  approved relationships), per-company timelines (relationship
+  milestones, statements, responses, approved claims),
+  claims-for-relationship lookup; company detail page on the site.
+- Phase 6 — alternatives with §45 scoring (10 dimensions, 0-5, never
+  political affiliation), §16 migration guides (structured fields),
+  §6 vendor-dependency mapping; scores and guides exported and
+  rendered on the alternatives page.
+- Review gate extended to `legal_document` subjects with a dedicated
+  8-point checklist (record type correct, negation stated, primary
+  source…).
+- Lightweight migrations: `reviews`/`publications` rebuilt when their
+  subject_type CHECK predates `legal_document`; `alternatives` gains
+  `score_json`, `migration_notes`, `limitations`.
+- CLI: `python -m app legal [--body ICJ] [--approved-only]`.
+- Seed fixtures now include an approved legal document, corporate
+  relationship + statement, and a scored alternative. 7 new integration
+  tests (132 total).
+
 ### Added — Real ingestion: RSS feeds + PDF books
 - Real RSS ingestion: `data/feeds.json` config, `python -m app feeds` /
   `ingest-rss`. Per-host rate limiting, tracking-param stripping, canonical

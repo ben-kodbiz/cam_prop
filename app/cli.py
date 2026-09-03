@@ -276,6 +276,26 @@ def cmd_book_search(args: argparse.Namespace) -> int:
         conn.close()
 
 
+def cmd_legal(args: argparse.Namespace) -> int:
+    cfg = load_config(env_file=args.env)
+    from modules.international_law import iter_documents
+
+    conn = connect(cfg.db_path, readonly=True)
+    try:
+        docs = iter_documents(conn, body=args.body, approved_only=args.approved_only)
+        for d in docs:
+            print(
+                f"{d['id']} [{d['document_type']}] {d['body']} — {d['case_or_document']}"
+                f" ({d['doc_date'] or 'undated'}) [{d['review_status']}]"
+            )
+            print(f"    finding: {d['finding'][:100]}")
+            print(f"    does NOT establish: {d['does_not_establish'][:100]}")
+        print(f"-- {len(docs)} legal documents")
+        return 0
+    finally:
+        conn.close()
+
+
 def cmd_books(args: argparse.Namespace) -> int:
     from modules.book_pipeline import list_books
 
@@ -311,7 +331,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("review", help="record a human review decision")
     sp.add_argument(
         "--subject-type",
-        choices=["claim", "relationship", "statement", "alternative"],
+        choices=["claim", "relationship", "statement", "alternative", "legal_document"],
         required=True,
     )
     sp.add_argument("--subject-id", required=True)
@@ -363,6 +383,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="skip per-page text extraction (still hashed + archived)",
     )
     sp.set_defaults(func=cmd_ingest_book)
+
+    sp = sub.add_parser("legal", help="list international-law documents")
+    sp.add_argument("--body", default=None, help="filter by body (ICJ, ICC, UNSC…)")
+    sp.add_argument("--approved-only", action="store_true")
+    sp.set_defaults(func=cmd_legal)
 
     sp = sub.add_parser("books", help="list imported books")
     sp.set_defaults(func=cmd_books)

@@ -1,0 +1,19 @@
+[
+  {
+    "id": "LGL-2026-0001",
+    "body": "ICJ",
+    "case_or_document": "SEED: Example Provisional Measures Order",
+    "document_type": "provisional_measure",
+    "jurisdiction": "global",
+    "date": "2024-01-26",
+    "finding": "SEED: The Court indicated certain provisional measures.",
+    "does_not_establish": "SEED: This order is not a judgment on the merits.",
+    "source_id": "SRC-2026-0001",
+    "review_status": "approved",
+    "last_reviewed": "2026-09-03T21:52:06+00:00",
+    "revision": 2,
+    "claims": [
+      "CLM-2026-0001"
+    ]
+  }
+]

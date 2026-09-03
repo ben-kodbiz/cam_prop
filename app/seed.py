@@ -183,5 +183,114 @@ def seed(conn: sqlite3.Connection, archive_dir: Path | None = None) -> dict[str,
         reason="SEED: provisional measures order directly supports the claim",
     )
     conn.execute("UPDATE claims SET confidence = 0.9 WHERE id = ?", (claim_reviewed,))
+
+    # --- Phase 4: legal document + cross-link --------------------------------
+    from modules.international_law import create_legal_document
+    from modules.international_law import link_claim as link_legal
+
+    from app.review import LEGAL_CHECKLIST
+
+    legal_id = create_legal_document(
+        conn,
+        body="ICJ",
+        case_or_document="SEED: Example Provisional Measures Order",
+        document_type="provisional_measure",
+        finding="SEED: The Court indicated certain provisional measures.",
+        does_not_establish="SEED: This order is not a judgment on the merits.",
+        source_id=icj,
+        jurisdiction="global",
+        doc_date="2024-01-26",
+    )
+    link_legal(conn, claim_id=claim_reviewed, legal_document_id=legal_id)
+    submit_review(
+        conn,
+        subject_type="legal_document",
+        subject_id=legal_id,
+        reviewer="seed-reviewer",
+        decision="approve",
+        checklist={k: True for k in LEGAL_CHECKLIST},
+        notes="SEED fixture legal review.",
+    )
+    ids["legal_document"] = legal_id
+
+    # --- Phase 5: corporate relationship + statement --------------------------
+    from modules.corporate import (
+        add_company_statement,
+        create_relationship,
+    )
+
+    corp_rel = create_relationship(
+        conn,
+        company_org_id=company,
+        service="SEED: cloud infrastructure",
+        customer="SEED: government entity",
+        classification="documented_contract",
+        contract_ref="SEED-CONTRACT-1",
+        evidence_ids=[ev2],
+        company_response="SEED: We comply with all applicable laws.",
+        start_date="2023-06-01",
+        status_notes="SEED fixture relationship.",
+    )
+    add_company_statement(
+        conn,
+        organization_id=company,
+        statement_text="SEED: We confirm the contract exists and comply with all laws.",
+        statement_type="confirmation",
+        statement_date="2023-06-20",
+        relates_to_relationship_id=corp_rel,
+    )
+    submit_review(
+        conn,
+        subject_type="relationship",
+        subject_id=corp_rel,
+        reviewer="seed-reviewer",
+        decision="approve",
+        checklist={},
+        notes="SEED fixture relationship review.",
+    )
+    ids["corporate_relationship"] = corp_rel
+
+    # --- Phase 6: alternatives ------------------------------------------------
+    from modules.alternatives import create_alternative
+
+    alt1 = create_alternative(
+        conn,
+        product="SEED ExampleDrive",
+        company="ExampleCorp",
+        category="cloud_storage",
+        alternative="SEED Nextcloud",
+        alternative_license="AGPL-3.0",
+        alternative_hosting="self-hosted",
+        self_hosting_available=True,
+        migration_difficulty="moderate",
+        privacy_notes="SEED: self-hosted storage keeps data under user control.",
+        alternative_url="https://example.org/nextcloud",
+        source_ids=[corp],
+        score={
+            "open_source": 5,
+            "self_hostable": 5,
+            "active_development": 4,
+            "security": 4,
+            "documentation": 4,
+            "migration": 3,
+            "cost": 5,
+            "lock_in": 5,
+            "privacy": 5,
+            "community": 4,
+        },
+        migration_notes="SEED: export data via WebDAV, import into instance.",
+        limitations="SEED: sharing features differ from the commercial product.",
+    )
+    submit_review(
+        conn,
+        subject_type="alternative",
+        subject_id=alt1,
+        reviewer="seed-reviewer",
+        decision="approve",
+        checklist={},
+        notes="SEED fixture alternative review.",
+    )
+    ids["alternative"] = alt1
+
     ids["reviewer"] = "seed-reviewer"
     return ids

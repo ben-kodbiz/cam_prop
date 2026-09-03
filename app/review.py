@@ -25,6 +25,19 @@ REVIEW_CHECKLIST: tuple[str, ...] = (
     "no_false_certainty",
 )
 
+# Legal records are always high-stakes: approving one requires these
+# (agentodo §11 — never conflate record types, always state the negation).
+LEGAL_CHECKLIST: tuple[str, ...] = (
+    "body_and_case_correct",
+    "document_type_correct",
+    "date_correct",
+    "finding_accurately_stated",
+    "does_not_establish_stated",
+    "source_is_primary",
+    "citations_correct",
+    "uncertainty_stated",
+)
+
 
 class ReviewError(ValueError):
     pass
@@ -51,7 +64,13 @@ def submit_review(
     notes: str | None = None,
 ) -> str:
     """Record a human review decision. High-impact claims need a full checklist."""
-    if subject_type not in ("claim", "relationship", "statement", "alternative"):
+    if subject_type not in (
+        "claim",
+        "relationship",
+        "statement",
+        "alternative",
+        "legal_document",
+    ):
         msg = f"unknown subject_type {subject_type!r}"
         raise ReviewError(msg)
     if decision not in ("approve", "reject", "request_evidence"):
@@ -66,6 +85,7 @@ def submit_review(
         "relationship": "corporate_relationships",
         "statement": "company_statements",
         "alternative": "alternatives",
+        "legal_document": "legal_documents",
     }[subject_type]
     row = conn.execute(f"SELECT * FROM {table} WHERE id = ?", (subject_id,)).fetchone()
     if row is None:
@@ -77,6 +97,11 @@ def submit_review(
         missing = [k for k in REVIEW_CHECKLIST if not cl.get(k)]
         if missing:
             msg = f"high-impact claim approval requires completed checklist; missing: {missing}"
+            raise ReviewError(msg)
+    if subject_type == "legal_document" and decision == "approve":
+        missing = [k for k in LEGAL_CHECKLIST if not cl.get(k)]
+        if missing:
+            msg = f"legal-document approval requires completed checklist; missing: {missing}"
             raise ReviewError(msg)
 
     now = utcnow_iso()
@@ -104,15 +129,23 @@ def submit_review(
     status_col = {
         "claims": ("review_status", "last_reviewed"),
         "corporate_relationships": ("review_status", "last_reviewed"),
-        "company_statements": (None, None),
+        "company_statements": None,
         "alternatives": ("review_status", None),
+        "legal_documents": ("review_status", "last_reviewed"),
     }[table]
-    if status_col[0]:
-        conn.execute(
-            f"UPDATE {table} SET {status_col[0]} = ?, {status_col[1]} = ?,"
-            " revision = revision + 1 WHERE id = ?",
-            (new_status, now, subject_id),
-        )
+    if status_col is not None:
+        review_col, reviewed_col = status_col
+        if reviewed_col:
+            conn.execute(
+                f"UPDATE {table} SET {review_col} = ?, {reviewed_col} = ?,"
+                " revision = revision + 1 WHERE id = ?",
+                (new_status, now, subject_id),
+            )
+        else:
+            conn.execute(
+                f"UPDATE {table} SET {review_col} = ?, revision = revision + 1 WHERE id = ?",
+                (new_status, subject_id),
+            )
     audit.log(
         conn,
         reviewer,
@@ -147,6 +180,7 @@ def record_publication(
         "claim": "claims",
         "relationship": "corporate_relationships",
         "alternative": "alternatives",
+        "legal_document": "legal_documents",
     }[subject_type]
     row = conn.execute(f"SELECT review_status FROM {table} WHERE id = ?", (subject_id,)).fetchone()
     if row is None:

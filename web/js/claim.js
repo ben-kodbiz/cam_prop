@@ -40,6 +40,45 @@ function evidenceSection(title, items, sources) {
   return block;
 }
 
+function legalSection(docs) {
+    const block = document.createElement("div");
+    block.className = "evidence-block";
+    const h = document.createElement("h3");
+    h.textContent = "International-law records";
+    block.appendChild(h);
+    const TYPES = {
+        allegation: "Allegation",
+        provisional_measure: "Provisional measure",
+        advisory_opinion: "Advisory opinion",
+        judgment: "Judgment",
+        arrest_warrant: "Arrest warrant",
+        conviction: "Conviction",
+        investigative_finding: "Investigative finding",
+        political_resolution: "Political resolution",
+    };
+    docs.forEach(ld => {
+        const item = document.createElement("div");
+        item.className = "evidence-item";
+        const head = document.createElement("p");
+        const pill = document.createElement("span");
+        pill.className = "status-pill " + ld.document_type;
+        pill.textContent = TYPES[ld.document_type] || ld.document_type;
+        head.appendChild(pill);
+        head.appendChild(document.createTextNode(
+            " " + ld.body + " — " + ld.case_or_document +
+            (ld.date ? " (" + ld.date + ")" : "")));
+        item.appendChild(head);
+        const finding = document.createElement("p");
+        finding.textContent = "Finding: " + ld.finding;
+        item.appendChild(finding);
+        const notEstablished = document.createElement("p");
+        notEstablished.textContent = "Does NOT establish: " + ld.does_not_establish;
+        item.appendChild(notEstablished);
+        block.appendChild(item);
+    });
+    return block;
+}
+
 async function loadClaim() {
   const main = document.getElementById("claim-page");
   const id = params().get("id");
@@ -86,6 +125,10 @@ async function loadClaim() {
     claim.evidence.filter(e => e.relationship === "contradicts")));
   card.appendChild(evidenceSection("Context",
     claim.evidence.filter(e => e.relationship === "context")));
+
+  if (claim.legal_documents && claim.legal_documents.length) {
+    card.appendChild(legalSection(claim.legal_documents));
+  }
 
   const dont = document.createElement("div");
   dont.className = "evidence-block";

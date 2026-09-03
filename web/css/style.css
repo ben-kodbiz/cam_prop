@@ -160,6 +160,36 @@ footer {
 
 .loading { color: var(--muted); }
 
+.notice {
+  border-left: 3px solid var(--accent);
+  padding: 0.5rem 1rem;
+  background: #f0f4f8;
+}
+
+.timeline {
+  list-style: none;
+  padding-left: 0;
+}
+
+.timeline li {
+  padding: 0.35rem 0;
+  border-bottom: 1px dashed var(--line);
+  font-size: 0.93rem;
+}
+
+.timeline .when {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.legal-card h4 {
+  margin: 0.4rem 0 0.2rem;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px; height: 1px;

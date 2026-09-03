@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>International law — Open Evidence</title>
+  <meta name="description" content="Structured records of ICJ, ICC and UN documents. Every record states what the finding does NOT establish.">
+  <link rel="stylesheet" href="/css/style.css">
+  <script defer src="/js/legal.js"></script>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/">Open Evidence</a>
+    <nav aria-label="Primary">
+      <a href="/claims.html">Claims</a>
+      <a href="/legal.html">Law</a>
+      <a href="/companies.html">Companies</a>
+      <a href="/sources.html">Sources</a>
+      <a href="/alternatives.html">Alternatives</a>
+      <a href="/methodology.html">Methodology</a>
+      <a href="/about.html">About</a>
+    </nav>
+  </header>
+  <main>
+    <h1>International-law records</h1>
+    <p>Structured records of documents issued by international courts and
+       bodies. Record types are kept strictly distinct — an allegation is
+       never presented as a judgment, a provisional measure is never
+       presented as a final ruling.</p>
+    <p class="notice">Every record explicitly states what it does
+       <strong>not</strong> establish.</p>
+    <form role="search" class="search" id="legal-search">
+      <label class="visually-hidden" for="q">Search legal records</label>
+      <input id="q" name="q" type="search" placeholder="Search cases, findings…">
+      <select id="body" aria-label="Filter by body">
+        <option value="">All bodies</option>
+        <option value="ICJ">ICJ</option>
+        <option value="ICC">ICC</option>
+        <option value="UNSC">UN Security Council</option>
+        <option value="UNGA">UN General Assembly</option>
+        <option value="UNHRC">UN Human Rights Council</option>
+      </select>
+      <button type="submit">Search</button>
+    </form>
+    <div id="legal-list" class="card-list">
+      <p class="loading">Loading…</p>
+    </div>
+  </main>
+  <footer>
+    <p>Open Evidence — evidence first, attribution always, uncertainty explicitly stated.</p>
+  </footer>
+</body>
+</html>

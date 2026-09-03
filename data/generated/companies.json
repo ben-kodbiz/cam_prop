@@ -1,1 +1,38 @@
-[]
+[
+  {
+    "id": "CORP-2026-0001",
+    "company": "ExampleCorp",
+    "service": "SEED: cloud infrastructure",
+    "customer": "SEED: government entity",
+    "classification": "documented_contract",
+    "start_date": "2023-06-01",
+    "end_date": null,
+    "confidence": null,
+    "company_response": "SEED: We comply with all applicable laws.",
+    "evidence_ids": [
+      "EVD-2026-0002"
+    ],
+    "last_reviewed": "2026-09-03T21:52:06+00:00",
+    "timeline": [
+      {
+        "date": "2023-06-01",
+        "kind": "relationship",
+        "label": "relationship start: SEED: cloud infrastructure for SEED: government entity (documented_contract)",
+        "id": "CORP-2026-0001"
+      },
+      {
+        "date": "2023-06-20",
+        "kind": "statement",
+        "label": "Company statement (confirmation): SEED: We confirm the contract exists and comply with all laws.",
+        "id": "CST-2026-0001"
+      },
+      {
+        "date": "2026-09-03",
+        "kind": "response",
+        "label": "Company response: SEED: We comply with all applicable laws.",
+        "id": "CORP-2026-0001"
+      }
+    ],
+    "url": "/company/examplecorp/"
+  }
+]

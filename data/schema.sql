@@ -183,6 +183,13 @@ CREATE TABLE IF NOT EXISTS alternatives (
     replaces_url TEXT,
     alternative_url TEXT,
     source_ids_json TEXT NOT NULL DEFAULT '[]',
+    score_json TEXT NOT NULL DEFAULT '{}', -- §45 dimensions (open_source,
+                                            -- self_hostable, active_development,
+                                            -- security, documentation,
+                                            -- migration, cost, lock_in,
+                                            -- privacy, community) 0-5 each
+    migration_notes TEXT,                  -- §16 guide: data migration notes
+    limitations TEXT,                      -- §16 guide: known limitations
     notes TEXT,
     review_status TEXT NOT NULL DEFAULT 'pending'
         CHECK (review_status IN ('pending', 'in_review', 'approved', 'rejected')),
@@ -193,7 +200,9 @@ CREATE TABLE IF NOT EXISTS alternatives (
 
 CREATE TABLE IF NOT EXISTS reviews (
     id TEXT PRIMARY KEY,                    -- REV-YYYY-NNNN
-    subject_type TEXT NOT NULL CHECK (subject_type IN ('claim', 'relationship', 'statement', 'alternative')),
+    subject_type TEXT NOT NULL
+        CHECK (subject_type IN ('claim', 'relationship', 'statement',
+                                'alternative', 'legal_document')),
     subject_id TEXT NOT NULL,
     reviewer TEXT NOT NULL,
     decision TEXT NOT NULL CHECK (decision IN ('approve', 'reject', 'request_evidence')),
@@ -205,7 +214,9 @@ CREATE TABLE IF NOT EXISTS reviews (
 
 CREATE TABLE IF NOT EXISTS publications (
     id TEXT PRIMARY KEY,                    -- PUB-YYYY-NNNN
-    subject_type TEXT NOT NULL CHECK (subject_type IN ('claim', 'relationship', 'alternative')),
+    subject_type TEXT NOT NULL
+        CHECK (subject_type IN ('claim', 'relationship', 'alternative',
+                                'legal_document')),
     subject_id TEXT NOT NULL,
     format TEXT,                            -- web_page, fact_check_card, short_script,
                                             -- carousel, report
@@ -228,6 +239,42 @@ CREATE TABLE IF NOT EXISTS audit_log (
     details_json TEXT NOT NULL DEFAULT '{}',
     reason TEXT
 );
+
+-- International-law records (agentodo §11). Every record must state what the
+-- finding DOES NOT establish; record types must never be conflated.
+CREATE TABLE IF NOT EXISTS legal_documents (
+    id TEXT PRIMARY KEY,                    -- LGL-YYYY-NNNN
+    body TEXT NOT NULL,                    -- ICJ, ICC, UNSC, UNGA, UNHRC, ...
+    case_or_document TEXT NOT NULL,
+    document_type TEXT NOT NULL
+        CHECK (document_type IN ('allegation', 'provisional_measure',
+                                 'advisory_opinion', 'judgment',
+                                 'arrest_warrant', 'conviction',
+                                 'investigative_finding', 'political_resolution')),
+    jurisdiction TEXT,                     -- global, regional, national
+    doc_date TEXT,
+    finding TEXT NOT NULL,                 -- what the document actually says
+    does_not_establish TEXT NOT NULL,     -- what it does NOT establish
+    source_id TEXT REFERENCES sources (id),
+    review_status TEXT NOT NULL DEFAULT 'pending'
+        CHECK (review_status IN ('pending', 'in_review', 'approved', 'rejected')),
+    revision INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    last_reviewed TEXT
+);
+
+CREATE TABLE IF NOT EXISTS claim_legal_documents (
+    claim_id TEXT NOT NULL REFERENCES claims (id) ON DELETE CASCADE,
+    legal_document_id TEXT NOT NULL REFERENCES legal_documents (id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (claim_id, legal_document_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_legal_body ON legal_documents (body);
+CREATE INDEX IF NOT EXISTS idx_legal_date ON legal_documents (doc_date);
+CREATE INDEX IF NOT EXISTS idx_legal_review ON legal_documents (review_status);
+CREATE INDEX IF NOT EXISTS idx_claim_legal ON claim_legal_documents (legal_document_id);
 
 CREATE INDEX IF NOT EXISTS idx_claims_status ON claims (status);
 CREATE INDEX IF NOT EXISTS idx_claims_review ON claims (review_status);
