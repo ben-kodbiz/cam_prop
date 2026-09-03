@@ -201,7 +201,8 @@ def record_publication(
              content_hash, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(subject_type, subject_id, format) DO UPDATE SET
              published_at = excluded.published_at,
-             content_hash = excluded.content_hash""",
+             content_hash = excluded.content_hash,
+             retracted_at = NULL""",
         (
             pid,
             subject_type,

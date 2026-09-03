@@ -6,6 +6,37 @@ The format is based on Keep a Changelog; the project adheres to
 
 ## [Unreleased]
 
+### Added — Phase 7: publishing automation + analytics
+- Analytics (§43): `app/analytics.py` computes review coverage, average
+  review age, correction rate, citation completeness, evidence depth —
+  never engagement/virality. `python -m app stats [--days N --out PATH]`;
+  exported to `web/data/stats.json`.
+- Corrections & retractions (§21): `app/corrections.py` — tracked
+  corrections (correction/clarification/evidence_update/status_change/
+  source_removal) with mandatory reasons, revision bumps, audit entries;
+  `python -m app retract` keeps retracted publications visible;
+  republishing clears the retraction (never silent).
+- Reports: weekly digest, corporate monthly report, fact-check card
+  batch (`python -m app report --kind weekly|corporate|cards`).
+- Publishing pipeline: `python -m app publish CLM-…` records the
+  publication and writes a card artifact; unapproved claims are refused.
+
+### Added — Phase 3: local AI (no cloud, human-gated)
+- `agents/llm.py`: minimal OpenAI-compatible client (llama.cpp/Ollama/
+  LM Studio) configured via `.env` (`OE_LLM_*`); tolerant JSON parsing;
+  client injectable — tests run with zero network.
+- `agents/claim_extraction.py`: LLM proposes claims from source text;
+  the pipeline enforces compound splitting, dedup and source linkage;
+  every proposal becomes a *pending* claim. The LLM never sets status.
+- `agents/drafts.py`: explanation/translation drafts stored in
+  `claim_drafts` (new table, DFT- IDs) and applied only by a human
+  (`python -m app extract-claims|draft|drafts|apply-draft`).
+  Translations set `translation_method='llm'`; the original claim text
+  is never replaced (§42).
+- Claims gained `explanation` (rendered as the "Why" block on claim
+  pages); export includes explanation/translated fields.
+- 34 new tests (166 total) including fake-LLM invariant tests.
+
 ### Added — Phases 4-6: law module, corporate depth, alternatives
 - Phase 4 — international-law database: `legal_documents` table (body,
   case, document_type from a fixed vocabulary, finding, mandatory

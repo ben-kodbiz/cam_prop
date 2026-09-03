@@ -53,6 +53,20 @@ python -m app book-search SRC-… "query"   # keyword search inside a book
 
 # International law
 python -m app legal [--body ICJ] [--approved-only]   # list legal documents
+
+# Publishing & corrections (Phase 7)
+python -m app publish CLM-…                          # publish approved claim + card artifact
+python -m app report --kind weekly|corporate|cards   # generate report artifacts
+python -m app retract --subject-type claim --subject-id CLM-… --reason "…"
+python -m app correct CLM-… --kind clarification --reason "…" --reviewer NAME \
+           [--new-status … --explanation …]
+python -m app stats [--days 30 --out PATH]           # §43 quality metrics
+
+# AI (Phase 3 — local OpenAI-compatible endpoint via .env OE_LLM_*)
+python -m app extract-claims SRC-… [--topic …]        # LLM proposes *pending* claims
+python -m app draft CLM-… --kind explanation|translation [--language ms]
+python -m app drafts [--claim-id CLM-…]              # list pending drafts
+python -m app apply-draft DFT-… --reviewer NAME [--reject --reason …]
 ```
 
 Run a single test file: `pytest tests/test_claims.py`; single test:
@@ -76,6 +90,17 @@ Run a single test file: `pytest tests/test_claims.py`; single test:
 - Corporate (Phase 5) and alternatives (Phase 6): `modules/corporate.py`,
   `modules/alternatives.py` — directory/timeline views and §45 scoring
   (10 practical dimensions; never political affiliation).
+- Publishing & corrections (Phase 7): `publishing/pipeline.py` (approval-
+  gated publish + card artifacts), `publishing/reports.py` (weekly/
+  corporate/cards), `app/corrections.py` (tracked corrections, retractions
+  keep publications visible), `app/analytics.py` (§43 metrics, exported as
+  `web/data/stats.json`).
+- AI (Phase 3): `agents/llm.py` (OpenAI-compatible local client, injectable
+  `LLMClient` protocol — tests use fakes, never network),
+  `agents/claim_extraction.py` (LLM proposals become *pending* claims only),
+  `agents/drafts.py` (drafts stored in `claim_drafts`, applied by a human).
+  The LLM never sets claim status, never invents evidence, and every draft
+  needs `apply-draft` by a named reviewer.
 - RSS ingestion: configure feeds in `data/feeds.json`
   (`python -m app ingest-rss`); entries dedupe by canonical URL; a failing
   feed never aborts the run. Tests inject a `fetcher` — no network in CI.
@@ -124,6 +149,6 @@ Run a single test file: `pytest tests/test_claims.py`; single test:
 
 Build incrementally (spec §57): repository → schema → ingestion → claims →
 evidence → review → static site → tests → LLM → law module → corporate →
-alternatives → publishing → analytics. Phases 1-6 are complete; LLM
-integration (Phase 3) and publishing/analytics (Phase 7) remain. Do not
-attempt the whole system in one pass.
+alternatives → publishing → analytics. All phases 1-7 (including the
+human-gated local AI) are complete. Do not attempt whole-system changes in
+one pass.

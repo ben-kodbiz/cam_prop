@@ -9,8 +9,8 @@
     "confidence": 0.9,
     "topic": "international_law",
     "importance": "high",
-    "last_reviewed": "2026-09-03T21:52:06+00:00",
-    "revision": 3,
+    "last_reviewed": "2026-09-03T22:29:50+00:00",
+    "revision": 4,
     "url": "/claim/CLM-2026-0001/",
     "evidence": [
       {
@@ -28,6 +28,9 @@
         "strength": 0.98
       }
     ],
+    "explanation": "SEED: updated explanation",
+    "translated_text": null,
+    "original_language": "en",
     "search_text": "seed the court issued provisional measures in the case",
     "legal_documents": [
       {

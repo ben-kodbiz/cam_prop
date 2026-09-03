@@ -119,6 +119,30 @@ async function loadClaim() {
   conf.textContent = " " + Math.round((claim.confidence || 0) * 100) + "% confidence";
   card.appendChild(conf);
 
+  if (claim.explanation) {
+    const why = document.createElement("div");
+    why.className = "evidence-block";
+    const wh = document.createElement("h3");
+    wh.textContent = "Why";
+    why.appendChild(wh);
+    const wp = document.createElement("p");
+    wp.textContent = claim.explanation;
+    why.appendChild(wp);
+    card.appendChild(why);
+  }
+
+  if (claim.translated_text && claim.original_language !== "en") {
+    const tr = document.createElement("div");
+    tr.className = "evidence-block";
+    const th = document.createElement("h3");
+    th.textContent = "Translation (not authoritative)";
+    tr.appendChild(th);
+    const tp = document.createElement("p");
+    tp.textContent = claim.translated_text;
+    tr.appendChild(tp);
+    card.appendChild(tr);
+  }
+
   card.appendChild(evidenceSection("Supporting evidence",
     claim.evidence.filter(e => e.relationship === "supports")));
   card.appendChild(evidenceSection("Contradicting evidence",

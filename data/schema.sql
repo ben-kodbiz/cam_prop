@@ -91,6 +91,7 @@ CREATE TABLE IF NOT EXISTS claims (
     original_language TEXT NOT NULL DEFAULT 'en',
     translated_text TEXT,                   -- translation, never authoritative
     translation_method TEXT,                -- human, llm, none
+    explanation TEXT,                       -- short published "why" (agentodo §19)
     review_status TEXT NOT NULL DEFAULT 'pending'
         CHECK (review_status IN ('pending', 'in_review', 'approved', 'rejected')),
     reviewer TEXT,
@@ -270,6 +271,27 @@ CREATE TABLE IF NOT EXISTS claim_legal_documents (
     created_at TEXT NOT NULL,
     PRIMARY KEY (claim_id, legal_document_id)
 );
+
+-- LLM-assisted drafts awaiting human apply/reject (Phase 3). Drafts never
+-- touch published content directly: a human must call apply_draft().
+CREATE TABLE IF NOT EXISTS claim_drafts (
+    id TEXT PRIMARY KEY,                    -- DFT-YYYY-NNNN
+    claim_id TEXT NOT NULL REFERENCES claims (id) ON DELETE CASCADE,
+    kind TEXT NOT NULL
+        CHECK (kind IN ('explanation', 'translation')),
+    draft_text TEXT NOT NULL,
+    model TEXT,                             -- LLM identifier used to generate
+    status TEXT NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'applied', 'rejected')),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    reviewed_at TEXT,
+    reviewer TEXT,
+    UNIQUE (claim_id, kind, status)
+);
+
+CREATE INDEX IF NOT EXISTS idx_drafts_claim ON claim_drafts (claim_id);
+CREATE INDEX IF NOT EXISTS idx_drafts_status ON claim_drafts (status);
 
 CREATE INDEX IF NOT EXISTS idx_legal_body ON legal_documents (body);
 CREATE INDEX IF NOT EXISTS idx_legal_date ON legal_documents (doc_date);

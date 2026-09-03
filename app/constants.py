@@ -123,4 +123,5 @@ ID_PREFIXES: dict[str, str] = {
     "reviews": "REV",
     "publications": "PUB",
     "legal_documents": "LGL",
+    "claim_drafts": "DFT",
 }

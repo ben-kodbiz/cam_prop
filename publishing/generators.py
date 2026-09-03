@@ -8,6 +8,7 @@ institutions, documented actions and corporate decisions (§29).
 from __future__ import annotations
 
 import sqlite3
+from typing import cast
 
 from app.evidence import get_evidence_for_claim
 
@@ -24,7 +25,7 @@ def _claim_or_error(conn: sqlite3.Connection, claim_id: str) -> sqlite3.Row:
     if row["review_status"] != "approved":
         msg = f"claim {claim_id} is not approved; content generation requires human approval"
         raise PublishingError(msg)
-    return row
+    return cast("sqlite3.Row", row)
 
 
 def _primary_citation(conn: sqlite3.Connection, claim_id: str) -> str:

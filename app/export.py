@@ -52,6 +52,9 @@ def _claim_to_dict(conn: sqlite3.Connection, row: sqlite3.Row, site_url: str) ->
             }
             for e in ev
         ],
+        "explanation": row["explanation"],
+        "translated_text": row["translated_text"],
+        "original_language": row["original_language"],
         "search_text": normalize_claim_text(row["claim_text"]),
     }
 
@@ -225,5 +228,20 @@ def export_all(db_path: str | Path, out_dir: str | Path, *, site_url: str = "") 
 def export_site_data(
     db_path: str | Path, web_dir: str | Path, *, site_url: str = ""
 ) -> dict[str, int]:
-    """Export straight into web/data/ for static deployment."""
-    return export_all(db_path, Path(web_dir) / "data", site_url=site_url)
+    """Export site JSON (claims/sources/companies/alternatives/legal + stats)."""
+    counts = export_all(db_path, Path(web_dir) / "data", site_url=site_url)
+    from app.analytics import compute_stats
+    from app.db import connect as db_connect
+
+    conn = db_connect(db_path, readonly=True)
+    try:
+        stats = compute_stats(conn)
+    finally:
+        conn.close()
+    data_dir = Path(web_dir) / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    (data_dir / "stats.json").write_text(
+        json.dumps(stats, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    counts["stats.json"] = 1
+    return counts

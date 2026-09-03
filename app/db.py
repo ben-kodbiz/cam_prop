@@ -58,6 +58,8 @@ _ALTERNATIVE_COLUMN_MIGRATIONS: tuple[tuple[str, str], ...] = (
     ("limitations", "TEXT"),
 )
 
+_CLAIM_COLUMN_MIGRATIONS: tuple[tuple[str, str], ...] = (("explanation", "TEXT"),)
+
 # subject_type sets per table with a CHECK on it; rebuilt when the set changes
 _SUBJECT_TYPE_CHECKS: dict[str, set[str]] = {
     "reviews": {"claim", "relationship", "statement", "alternative", "legal_document"},
@@ -74,6 +76,10 @@ def _migrate_columns(conn: sqlite3.Connection) -> None:
     for column, ddl in _ALTERNATIVE_COLUMN_MIGRATIONS:
         if column not in existing:
             conn.execute(f"ALTER TABLE alternatives ADD COLUMN {column} {ddl}")
+    existing = {r["name"] for r in conn.execute("PRAGMA table_info(claims)")}
+    for column, ddl in _CLAIM_COLUMN_MIGRATIONS:
+        if column not in existing:
+            conn.execute(f"ALTER TABLE claims ADD COLUMN {column} {ddl}")
     _migrate_subject_type_checks(conn)
 
 

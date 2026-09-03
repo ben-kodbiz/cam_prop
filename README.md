@@ -34,6 +34,17 @@ pip install -e ".[pdf]"                     # once, for PDF book support
 python -m app ingest-book FILE.pdf --title "…" --author "…" --year 2020
 python -m app books                         # list imported books
 python -m app book-search SRC-… "query"     # search inside a book
+
+# International law / publishing / corrections / AI
+python -m app legal [--body ICJ]            # list legal documents
+python -m app publish CLM-…                 # publish approved claim + card
+python -m app report --kind weekly|corporate|cards
+python -m app retract --subject-type claim --subject-id CLM-… --reason "…"
+python -m app correct CLM-… --kind clarification --reason "…" --reviewer NAME
+python -m app stats --days 30               # §43 quality metrics
+python -m app extract-claims SRC-…          # LLM proposes *pending* claims
+python -m app draft CLM-… --kind explanation|translation
+python -m app apply-draft DFT-… --reviewer NAME   # human applies a draft
 ```
 Serve the static site (any static file server works):
 

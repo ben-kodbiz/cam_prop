@@ -149,25 +149,15 @@ def cmd_stats(args: argparse.Namespace) -> int:
     cfg = load_config(env_file=args.env)
     conn = connect(cfg.db_path, readonly=True)
     try:
-        out = {
-            "claims_by_status": dict(
-                conn.execute("SELECT status, COUNT(*) FROM claims GROUP BY status").fetchall()
-            ),
-            "claims_by_review": dict(
-                conn.execute(
-                    "SELECT review_status, COUNT(*) FROM claims GROUP BY review_status"
-                ).fetchall()
-            ),
-            "sources_by_tier": dict(
-                conn.execute(
-                    "SELECT source_tier, COUNT(*) FROM sources GROUP BY source_tier"
-                ).fetchall()
-            ),
-            "evidence_total": conn.execute("SELECT COUNT(*) FROM evidence").fetchone()[0],
-            "audit_entries": conn.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0],
-            "generated_at": utcnow_iso(),
-        }
-        print(json.dumps(out, indent=2))
+        from app.analytics import compute_stats
+
+        out = compute_stats(conn, days=args.days)
+        if args.out:
+            Path(args.out).write_text(
+                json.dumps(out, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+            )
+            print(f"stats written to {args.out}")
+        print(json.dumps(out, indent=2, ensure_ascii=False))
     finally:
         conn.close()
     return 0
@@ -311,6 +301,221 @@ def cmd_books(args: argparse.Namespace) -> int:
         conn.close()
 
 
+def cmd_publish(args: argparse.Namespace) -> int:
+    cfg = load_config(env_file=args.env)
+    from publishing.pipeline import publish_claim
+
+    conn = connect(cfg.db_path)
+    try:
+        result = publish_claim(
+            conn,
+            args.claim_id,
+            output_dir=cfg.web_dir / "generated",
+            actor=args.actor,
+        )
+        conn.commit()
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    except (ValueError, RuntimeError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    finally:
+        conn.close()
+
+
+def cmd_report(args: argparse.Namespace) -> int:
+    cfg = load_config(env_file=args.env)
+    import publishing.reports as reports
+    from publishing.pipeline import publish_report
+
+    conn = connect(cfg.db_path, readonly=True)
+    try:
+        if args.kind == "weekly":
+            text = reports.weekly_report(conn)
+        elif args.kind == "corporate":
+            text = reports.corporate_monthly_report(conn)
+        else:
+            limit = args.limit or 20
+            text = reports.fact_check_card_report(conn, limit=limit)
+        out = publish_report(
+            conn,
+            text,
+            name=f"{args.kind}-{utcnow_iso()[:10]}",
+            output_dir=cfg.web_dir / "generated",
+            actor=args.actor,
+        )
+        print(f"report written: {out}")
+        print(text[:400] + ("…" if len(text) > 400 else ""))
+        return 0
+    finally:
+        conn.close()
+
+
+def cmd_retract(args: argparse.Namespace) -> int:
+    cfg = load_config(env_file=args.env)
+    from app.corrections import retract_publication
+
+    conn = connect(cfg.db_path)
+    try:
+        n = retract_publication(
+            conn,
+            subject_type=args.subject_type,
+            subject_id=args.subject_id,
+            actor=args.actor,
+            reason=args.reason,
+        )
+        conn.commit()
+        print(f"retracted {n} live publication(s) of {args.subject_type} {args.subject_id}")
+        return 0
+    except (ValueError, RuntimeError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    finally:
+        conn.close()
+
+
+def cmd_correct(args: argparse.Namespace) -> int:
+    cfg = load_config(env_file=args.env)
+    from app.corrections import correct_claim
+
+    conn = connect(cfg.db_path)
+    try:
+        revision = correct_claim(
+            conn,
+            args.claim_id,
+            kind=args.kind,
+            reason=args.reason,
+            reviewer=args.reviewer,
+            new_status=args.new_status,
+            new_explanation=args.explanation,
+        )
+        conn.commit()
+        print(f"correction recorded; {args.claim_id} is now revision {revision}")
+        return 0
+    except (ValueError, RuntimeError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    finally:
+        conn.close()
+
+
+def cmd_extract_claims(args: argparse.Namespace) -> int:
+    cfg = load_config(env_file=args.env)
+    from agents.claim_extraction import extract_claims
+    from agents.llm import client_from_config
+
+    conn = connect(cfg.db_path)
+    try:
+        row = conn.execute("SELECT * FROM sources WHERE id = ?", (args.source_id,)).fetchone()
+        if row is None:
+            print(f"error: source {args.source_id} not found", file=sys.stderr)
+            return 1
+        text = _source_text(cfg, row)
+        result = extract_claims(
+            conn,
+            source_id=args.source_id,
+            text=text,
+            client=client_from_config(cfg.llm),
+            topic=args.topic,
+        )
+        conn.commit()
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    except (ValueError, RuntimeError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    finally:
+        conn.close()
+
+
+def cmd_draft(args: argparse.Namespace) -> int:
+    cfg = load_config(env_file=args.env)
+    from agents.drafts import draft_explanation, draft_translation
+    from agents.llm import client_from_config
+
+    conn = connect(cfg.db_path)
+    try:
+        client = client_from_config(cfg.llm)
+        if args.kind == "explanation":
+            draft_explanation(conn, claim_id=args.claim_id, client=client, model=cfg.llm.model)
+            action = "explanation"
+        else:
+            draft_translation(
+                conn,
+                claim_id=args.claim_id,
+                target_language=args.language,
+                client=client,
+                model=cfg.llm.model,
+            )
+            action = f"translation ({args.language})"
+        conn.commit()
+        print(
+            f"draft {action} stored for {args.claim_id}; apply with"
+            f" `drafts --claim-id {args.claim_id}` then `apply-draft DFT-…`"
+        )
+        return 0
+    except (ValueError, RuntimeError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    finally:
+        conn.close()
+
+
+def cmd_drafts(args: argparse.Namespace) -> int:
+    cfg = load_config(env_file=args.env)
+    from agents.drafts import pending_drafts
+
+    conn = connect(cfg.db_path, readonly=True)
+    try:
+        rows = pending_drafts(conn, claim_id=args.claim_id)
+        for d in rows:
+            print(f"{d['id']} [{d['kind']}] claim={d['claim_id']}")
+            print(f"    {d['draft_text'][:160]}")
+        print(f"-- {len(rows)} pending drafts")
+        return 0
+    finally:
+        conn.close()
+
+
+def cmd_apply_draft(args: argparse.Namespace) -> int:
+    cfg = load_config(env_file=args.env)
+    from agents.drafts import apply_draft, reject_draft
+
+    conn = connect(cfg.db_path)
+    try:
+        if args.reject:
+            reject_draft(conn, args.draft_id, reviewer=args.reviewer, reason=args.reason)
+            conn.commit()
+            print(f"draft {args.draft_id} rejected")
+        else:
+            apply_draft(conn, args.draft_id, reviewer=args.reviewer)
+            conn.commit()
+            print(f"draft {args.draft_id} applied by {args.reviewer}")
+        return 0
+    except (ValueError, RuntimeError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    finally:
+        conn.close()
+
+
+def _source_text(cfg: object, row: sqlite3.Row) -> str:
+    """Text used for claim extraction: book pages or archived content."""
+    archive_dir = cfg.archive_dir
+    if row["doc_kind"] == "book":
+        from modules.book_pipeline import load_pages
+
+        pages = load_pages(archive_dir, row["id"])
+        return "\n".join(pages.get(i, "") for i in sorted(pages)) or row["title"]
+    if row["archive_path"]:
+        source_file = archive_dir / Path(row["archive_path"]) / "source.txt"
+        if source_file.is_file():
+            text: str = source_file.read_text(encoding="utf-8", errors="replace")
+            return text
+    title: str = str(row["title"])
+    return title
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="open-evidence", description=__doc__)
     p.add_argument("--env", default=None, help="path to .env file")
@@ -355,9 +560,6 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--limit", type=int, default=50)
     sp.set_defaults(func=cmd_search)
 
-    sp = sub.add_parser("stats", help="database statistics")
-    sp.set_defaults(func=cmd_stats)
-
     sp = sub.add_parser("feeds", help="list configured RSS feeds")
     sp.add_argument("--feeds", default=None, help="path to feeds.json")
     sp.set_defaults(func=cmd_feeds)
@@ -396,6 +598,74 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("source_id")
     sp.add_argument("query")
     sp.set_defaults(func=cmd_book_search)
+
+    sp = sub.add_parser("stats", help="database statistics (§43 metrics)")
+    sp.add_argument("--days", type=int, default=30, help="analytics window")
+    sp.add_argument("--out", default=None, help="also write stats JSON to this path")
+    sp.set_defaults(func=cmd_stats)
+
+    sp = sub.add_parser("publish", help="publish an approved claim (+ card artifact)")
+    sp.add_argument("claim_id")
+    sp.add_argument("--actor", default="system")
+    sp.set_defaults(func=cmd_publish)
+
+    sp = sub.add_parser("report", help="generate a report artifact")
+    sp.add_argument("--kind", choices=["weekly", "corporate", "cards"], default="weekly")
+    sp.add_argument("--limit", type=int, default=20, help="cards report: max claims")
+    sp.add_argument("--actor", default="system")
+    sp.set_defaults(func=cmd_report)
+
+    sp = sub.add_parser("retract", help="retract live publications of a subject")
+    sp.add_argument(
+        "--subject-type",
+        choices=["claim", "relationship", "alternative", "legal_document"],
+        required=True,
+    )
+    sp.add_argument("--subject-id", required=True)
+    sp.add_argument("--reason", required=True)
+    sp.add_argument("--actor", default="system")
+    sp.set_defaults(func=cmd_retract)
+
+    sp = sub.add_parser("correct", help="record a tracked correction to a claim")
+    sp.add_argument("claim_id")
+    sp.add_argument(
+        "--kind",
+        choices=[
+            "correction",
+            "clarification",
+            "evidence_update",
+            "status_change",
+            "source_removal",
+        ],
+        required=True,
+    )
+    sp.add_argument("--reason", required=True)
+    sp.add_argument("--reviewer", required=True)
+    sp.add_argument("--new-status", default=None)
+    sp.add_argument("--explanation", default=None)
+    sp.set_defaults(func=cmd_correct)
+
+    sp = sub.add_parser("extract-claims", help="LLM: propose claims from a source's text")
+    sp.add_argument("source_id")
+    sp.add_argument("--topic", default=None)
+    sp.set_defaults(func=cmd_extract_claims)
+
+    sp = sub.add_parser("draft", help="LLM: draft an explanation or translation")
+    sp.add_argument("claim_id")
+    sp.add_argument("--kind", choices=["explanation", "translation"], required=True)
+    sp.add_argument("--language", default="en", help="target language for translation")
+    sp.set_defaults(func=cmd_draft)
+
+    sp = sub.add_parser("drafts", help="list pending LLM drafts")
+    sp.add_argument("--claim-id", default=None)
+    sp.set_defaults(func=cmd_drafts)
+
+    sp = sub.add_parser("apply-draft", help="apply or reject a pending LLM draft")
+    sp.add_argument("draft_id")
+    sp.add_argument("--reviewer", required=True)
+    sp.add_argument("--reject", action="store_true")
+    sp.add_argument("--reason", default=None)
+    sp.set_defaults(func=cmd_apply_draft)
 
     sp = sub.add_parser("backup", help="backup the SQLite database")
     sp.add_argument("--out", default=None)
